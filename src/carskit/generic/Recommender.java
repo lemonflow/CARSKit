@@ -350,7 +350,7 @@ public abstract class Recommender implements Runnable{
             evalInfo += "\tView: " + view;
 
         if (fold > 0)
-        Logs.debug(evalInfo);
+            Logs.debug(evalInfo);
 
         if (isSaveModel)
             saveModel();
@@ -464,7 +464,7 @@ public abstract class Recommender implements Runnable{
         if (isResultsOut) {
             preds = new ArrayList<String>(1500);
             preds.add("userId\titemId\tcontexts\trating\tprediction"); // optional: file header
-            toFile = this.workingPath + algoName + "-rating-predictions" + foldInfo + ".txt"; // the output-file name
+            toFile = workingPath + algoName + "-rating-predictions" + foldInfo + ".txt"; // the output-file name
             FileIO.deleteFile(toFile); // delete possibly old files
         }
 
@@ -478,6 +478,11 @@ public abstract class Recommender implements Runnable{
             int ctx = me.column();
             int u=rateDao.getUserIdFromUI(ui);
             int j=rateDao.getItemIdFromUI(ui);
+
+            if(isUserSplitting)
+                u = userIdMapper.contains(u,ctx) ? userIdMapper.get(u,ctx) : u;
+            if(isItemSplitting)
+                j = itemIdMapper.contains(j,ctx) ? itemIdMapper.get(j,ctx) : j;
 
             double pred = predict(u,j, ctx, true);
             if (Double.isNaN(pred))
@@ -605,6 +610,7 @@ public abstract class Recommender implements Runnable{
 
         //Logs.debug("Fold["+fold+"]: numUsers = "+numUsers + ", numItems = "+numItems);
         librec.data.SparseMatrix sm=new librec.data.SparseMatrix(numUsers, numItems, newtable, colMap);
+        Logs.info("Density of transformed 2D rating matrix ============================== "+(sm.getData().length+0.0)/(sm.numRows()*sm.numColumns()));
         return sm;
     }
 
@@ -618,9 +624,11 @@ public abstract class Recommender implements Runnable{
      * @return the evaluation results of ranking predictions
      */
 
+
     protected Map<Measure, Double> evalRankings() throws Exception {
 
-        HashMap<Integer, HashMultimap<Integer, Integer>> uciList=rateDao.getUserCtxList(testMatrix);
+        HashMap<Integer, HashMultimap<Integer, Integer>> uciList=rateDao.getUserCtxList(testMatrix, binThold); // retrieve positive user-items (rate>threshold) list from test set
+        HashMap<Integer, HashMultimap<Integer, Integer>> uciList_train=rateDao.getUserCtxList(trainMatrix);
         int capacity = uciList.keySet().size();
 
         // initialization capacity to speed up
@@ -646,8 +654,8 @@ public abstract class Recommender implements Runnable{
         if (isResultsOut) {
             preds = new ArrayList<String>(1500);
             preds.add("# userId: recommendations in (itemId, ranking score) pairs, where a correct recommendation is denoted by symbol *."); // optional: file header
-            toFile = this.workingPath
-                    + String.format("%s-top-%d-items%s.txt", new Object[] { algoName, numTopNRanks, foldInfo }); // the output-file name
+            toFile = workingPath
+                    + String.format("%s-top-%d-items%s.txt", algoName, numTopNRanks, foldInfo); // the output-file name
             FileIO.deleteFile(toFile); // delete possibly old files
         }
 
@@ -673,7 +681,7 @@ public abstract class Recommender implements Runnable{
 
         // for each test user
         for (int u:uciList.keySet()) {
-
+            int uu=u;
             Multimap<Integer, Integer> cis = uciList.get(u);
 
             int c_capacity = cis.keySet().size();
@@ -689,6 +697,8 @@ public abstract class Recommender implements Runnable{
             List<Double> c_rrs = new ArrayList<>(c_capacity);
             List<Double> c_aucs = new ArrayList<>(c_capacity);
             List<Double> c_ndcgs = new ArrayList<>(c_capacity);
+
+            HashMultimap<Integer, Integer> cList_train = (uciList_train.containsKey(u))?uciList_train.get(u):HashMultimap.<Integer, Integer>create();
 
             // for each ctx
             for (int c : cis.keySet()) {
@@ -713,18 +723,27 @@ public abstract class Recommender implements Runnable{
                     continue; // no testing data for user u
 
                 // remove rated items from candidate items
-                // in CARS, we do not exclude rateditems, since user may rate a same item for multiple times within different contexts
-                //Set<Integer> ratedItems = trainMatrix.getRatedItemsList(u, idUIs, userRatingList);
+                Set<Integer> ratedItems = (cList_train.containsKey(c))?cList_train.get(c):new HashSet<Integer>();
+
+
 
                 // predict the ranking scores (unordered) of all candidate items
                 List<Map.Entry<Integer, Double>> itemScores = new ArrayList<>(Lists.initSize(candItems));
-                for (final Integer j : candItems) {
-                    // item j is not rated; but in CARS, we do not exclude rateditems, since user may rate a same item for multiple times within different contexts
-                    //if (!ratedItems.contains(j)) {
-                    final double rank = ranking(u, j, c);
+                for (Integer j : candItems) {
+                    int jj=j;
+                    if (!ratedItems.contains(j)) {
+
+                        if(isUserSplitting)
+                            u = userIdMapper.contains(u,c) ? userIdMapper.get(u,c) : u;
+                        if(isItemSplitting)
+                            j = itemIdMapper.contains(j,c) ? itemIdMapper.get(j,c) : j;
+
+                        final double rank = ranking(u, j, c);
                         if (!Double.isNaN(rank)) {
-                            itemScores.add(new SimpleImmutableEntry<Integer, Double>(j, rank));
-                        //}
+                            // add rating threshold as a filter
+                            if(rank>binThold)
+                                itemScores.add(new SimpleImmutableEntry<Integer, Double>(jj, rank));
+                        }
                     } else {
                         numCands--;
                     }
@@ -794,7 +813,7 @@ public abstract class Recommender implements Runnable{
                 // output predictions
                 if (isResultsOut) {
                     // restore back to the original user id
-                    preds.add(rateDao.getUserId(u) + ", " + rateDao.getContextSituationFromInnerId(c) + ": " + sb.toString());
+                    preds.add(rateDao.getUserId(uu) + ", " + rateDao.getContextSituationFromInnerId(c) + ": " + sb.toString());
                     if (preds.size() >= 1000) {
                         FileIO.writeList(toFile, preds, true);
                         preds.clear();
@@ -838,6 +857,21 @@ public abstract class Recommender implements Runnable{
         return measures;
     }
 
+    /**
+     * determine whether the rating of a user-item (u, j) is used to predicted
+     *
+     */
+    protected boolean isTestable(int u, int j) {
+        String uiid=u+","+j;
+        int rowid=rateDao.getUserItemId(uiid);
+        switch (view) {
+            case "cold-start":
+                return trainMatrix.rowSize(rowid) < 5 ? true : false;
+            case "all":
+            default:
+                return true;
+        }
+    }
 
     /**
      *
@@ -884,6 +918,31 @@ public abstract class Recommender implements Runnable{
 
 
     protected SymmMatrix buildCorrs(boolean isUser) {
+        Logs.debug("Build {} similarity matrix ...", isUser ? "user" : "item");
+
+        int count = isUser ? numUsers : numItems;
+        SymmMatrix corrs = new SymmMatrix(count);
+
+        for (int i = 0; i < count; i++) {
+            SparseVector iv = isUser ? train.row(i) : train.column(i);
+            if (iv.getCount() == 0)
+                continue;
+            // user/item itself exclusive
+            for (int j = i + 1; j < count; j++) {
+                SparseVector jv = isUser ? train.row(j) : train.column(j);
+                if(jv.getCount() == 0 )
+                    continue;
+                double sim = correlation(iv, jv);
+
+                if (!Double.isNaN(sim))
+                    corrs.set(i, j, sim);
+            }
+        }
+
+        return corrs;
+    }
+
+    protected SymmMatrix buildCorrs(boolean isUser, SparseMatrix train) {
         Logs.debug("Build {} similarity matrix ...", isUser ? "user" : "item");
 
         int count = isUser ? numUsers : numItems;

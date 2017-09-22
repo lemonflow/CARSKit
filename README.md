@@ -27,26 +27,22 @@ CARSKit is [free software](http://www.gnu.org/philosophy/free-sw.html): you can 
 
 Please cite the following papers if you use CARSKit in your research:
 
-1. Yong Zheng, Bamshad Mobasher, Robin Burke. "CARSKit: A Java-Based Context-aware Recommendation Engine", Proceedings of the 15th IEEE International Conference on Data Mining (ICDM) Workshops, Atlantic City, NJ, USA, Nov 2015
+1. Yong Zheng, Bamshad Mobasher, Robin Burke. "CARSKit: A Java-Based Context-aware Recommendation Engine", Proceedings of the 15th IEEE International Conference on Data Mining (ICDM) Workshops, pp. 1668-1671, Atlantic City, NJ, USA, Nov 2015
 
 If you use CARSKit in your research papers, please let us know. And I will create a list of publications using this toolkit.
 
-### Downloads
-* **[CARSKit-v0.1.0.jar](https://raw.githubusercontent.com/irecsys/CARSKit/master/jar/CARSKit-v0.1.0.jar)**
+### Downloads (Latest)
+* **[CARSKit-v0.3.0.jar](https://github.com/irecsys/CARSKit/raw/master/jar/CARSKit-v0.3.0.jar)**
 
 ### Data Sets
 --------------
 
-A list of context-aware data sets can be found here: http://tiny.cc/contextdata <br/>
+A list of context-aware data sets can be found here: http://tiny.cc/datacars <br/>
 
-### User Guide
+### User's Guide
 --------------
-
-Comming soon...
-
- - **Data Preparation**
- - **Configuration**
- - **Evaluations**
+The guide can be found and downloaded from http://arxiv.org/abs/1511.03780<br/>
+Note: if there are missing values or EMPTY values in the context information, you should mark those values as NA (i.e., Not Available) which will be viewed as a special context condition in the data.
 
 ### Acknowledgement
 --------------------
@@ -55,35 +51,26 @@ I would like to show our gratitude to Dr. Guibing Guo (the author of LibRec) for
 
 ### Release Notes
 ------------------
+**2016/05/04, Version 0.3.0**
+* BugFix in some algorithms
+* Add more contextual filtering algorithms: ExactFiltering, DCR and DCW
+* Add "-fullstat" in configuration which allows the kit to present more details on data statistics
+* Add "-minlenu" and "-minleni" to setup "recommender=usersplitting -traditional biasedmf -minlenu 2 -minleni 2"
+* Update corresponding JavaDoc and JAR library
 
-**2015/11/11, Version 0.2.0 (Coming Soon)**
-* **What's New**:
- - add Tensor Factorization into CARSKit
- - optimize the coding
- - probably add some post-filtering algorithms
-* **To-Do List**: 
-  - preparation to integrate with LibRec
-  - may implement more context-aware recommendation algorithms
+**2016/04/18, Version 0.2.4**
+* BugFix in Tensor Factorization
+* Add a contextual PreFiltering algorithm: SPF (Semantic PreFiltering)
+* Update corresponding JavaDoc and JAR library
+* Change the evaluation process when you set a rating threshold for TopN recommendation
 
-**2015/09/25, Initial Release Version 0.1.0**
+**2015/11/09, Version 0.2.0**
+* add Tensor Factorization (CPTF) into CARSKit
+* update API documents and the configuration file setting.conf
+* release user's guide, "A User's Guide to CARSKit"
+* optimize the coding
 
-Today is the day -- iPhone 6S/6S+ is released for sales and we have the initial release for CARSKit.
-
-* **Notes and updates**: 
-  - This is the initial release. 
-  - Most algorithms and functions have been completed except the tensor factorization (TF). 
-  - For TF, please refer to the latest version of LibRec.
-* **To-Do List**: 
-  - integrate TF with CARSkit; 
-  - create user guide; 
-  - generate a demo; 
-  - incorporate more recommendation algorithms, such as post-filtering ones, etc
-
-**2015/08/25, Pre-Release**
-
-Most algorithms (traditional recsys algorithms and context-aware recsys algorithms) have been implemented. Only a few of more changes will be made, and probably some new CARS algorithms (published in 2015) will be implemented. API documents will be created, as well as a short demo. The CARSKit is almost done, and it will be released in September, 2015, estimatedly. We will fix bugs and implement more algorithms in the following updates, and CARSKit is finally expected to be merged into LibRec.
-
-
+**2015/09/25, Version 0.1.0 (Initial Release)**
 
 
 

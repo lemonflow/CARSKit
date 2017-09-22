@@ -107,15 +107,8 @@ public class UserKNN extends Recommender {
         }
 
         if (nns.size() == 0)
-            return isRankingPred ? 0 : globalMean;
-
-        if (isRankingPred) {
-            // for item ranking
-
-            return Stats.sum(nns.values());
-        } else {
-            // for rating prediction
-
+            return  globalMean;
+        else {
             double sum = 0, ws = 0;
             for (Entry<Integer, Double> en : nns.entrySet()) {
                 int v = en.getKey();
@@ -128,6 +121,7 @@ public class UserKNN extends Recommender {
 
             return ws > 0 ? userMeans.get(u) + sum / ws : globalMean;
         }
+
     }
 
     @Override

@@ -6,6 +6,7 @@ import carskit.data.structure.SparseMatrix;
 import carskit.generic.ContextRecommender;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
+import happy.coding.io.Logs;
 import happy.coding.math.Randoms;
 import librec.data.DenseMatrix;
 import librec.data.DenseVector;
@@ -18,7 +19,7 @@ import java.util.List;
 
 public class CAMF_LCS extends CAMF{
 
-
+    private int numF;
 
     public CAMF_LCS(SparseMatrix trainMatrix, SparseMatrix testMatrix, int fold) {
         super(trainMatrix, testMatrix, fold);
@@ -28,9 +29,9 @@ public class CAMF_LCS extends CAMF{
     protected void initModel() throws Exception {
 
         super.initModel();
+        numF=algoOptions.getInt("-f", 10);
 
-
-        cfMatrix_LCS=new DenseMatrix(numConditions, numFactors);
+        cfMatrix_LCS=new DenseMatrix(numConditions, numF);
         cfMatrix_LCS.init();
     }
 
@@ -38,8 +39,21 @@ public class CAMF_LCS extends CAMF{
     protected double predict(int u, int j, int c) throws Exception {
         double pred=DenseMatrix.rowMult(P, u, Q, j);
         List<Integer> conditions=getConditions(c);
-        for(int i=0;i<conditions.size();++i)
+        for(int i=0;i<conditions.size();++i){
+            double[] dv1=cfMatrix_LCS.row(conditions.get(i)).getData();
+            double[] dv2=cfMatrix_LCS.row(EmptyContextConditions.get(i)).getData();
+            double sum1=0,sum2=0;
+            for(int h=0;h<dv1.length;++h){
+                sum1+=dv1[h]*dv1[h];
+                sum2+=dv2[h]*dv2[h];
+            }
+            sum1=Math.sqrt(sum1);
+            sum2=Math.sqrt(sum2);
+            //if(isRankingPred)
             pred=pred*DenseMatrix.rowMult(cfMatrix_LCS, conditions.get(i), cfMatrix_LCS, EmptyContextConditions.get(i));
+            //else
+            //pred=pred*DenseMatrix.rowMult(cfMatrix_LCS, conditions.get(i), cfMatrix_LCS, EmptyContextConditions.get(i))/(sum1*sum2);
+        }
         return pred;
     }
 
@@ -87,7 +101,7 @@ public class CAMF_LCS extends CAMF{
                         for (int index2 : toBeUpdated.row(index1).keySet()) {
                             // index1 and index2 are pairwise
                             // for each index2, there is only one index2
-                            for (int f = 0; f < numFactors; f++) {
+                            for (int f = 0; f < numF; f++) {
                                 double c1f = cfMatrix_LCS.get(index1,f);
                                 double c2f = cfMatrix_LCS.get(index2,f);
                                 double sim = toBeUpdated.get(index1,index2);
